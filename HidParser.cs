@@ -307,13 +307,11 @@ namespace TrackpadWindowControl
                         isTouching = true;
                 }
 
-                // Contact ID — use collection index as fallback if not present.
-                NativeMethods.HidP_GetUsageValue(
-                    NativeMethods.HIDP_REPORT_TYPE.HidP_Input,
-                    NativeMethods.HID_USAGE_PAGE_DIGITIZER, col,
-                    NativeMethods.HID_USAGE_DIGITIZER_CONTACT_ID,
-                    out uint contactId, dev.PreparsedData, reportPtr, reportLen);
-                if (contactId == 0) contactId = col;
+                // Always use the collection index as contact ID.
+                // The HID Contact ID field on some devices (e.g. ThinkPad X1 Carbon)
+                // returns duplicate values across finger slots, which collapses the
+                // active-contact dictionary and prevents 3-finger detection.
+                uint contactId = col;
 
                 // X and Y — skip this collection if both are zero and not touching.
                 NativeMethods.HidP_GetUsageValue(
