@@ -63,24 +63,33 @@ namespace TrackpadWindowControl
 
         private void RegisterTouchpad()
         {
-            var rid = new NativeMethods.RAWINPUTDEVICE
+            // Register for Touchpad (0x05) AND Touch Screen (0x04) — ELAN and
+            // Synaptics devices on ThinkPads sometimes report as the latter.
+            var rids = new[]
             {
-                usUsagePage = NativeMethods.HID_USAGE_PAGE_DIGITIZER,
-                usUsage     = NativeMethods.HID_USAGE_DIGITIZER_TOUCHPAD,
-                dwFlags     = NativeMethods.RIDEV_INPUTSINK,
-                hwndTarget  = _hwnd,
+                new NativeMethods.RAWINPUTDEVICE
+                {
+                    usUsagePage = NativeMethods.HID_USAGE_PAGE_DIGITIZER,
+                    usUsage     = NativeMethods.HID_USAGE_DIGITIZER_TOUCHPAD,   // 0x05
+                    dwFlags     = NativeMethods.RIDEV_INPUTSINK,
+                    hwndTarget  = _hwnd,
+                },
+                new NativeMethods.RAWINPUTDEVICE
+                {
+                    usUsagePage = NativeMethods.HID_USAGE_PAGE_DIGITIZER,
+                    usUsage     = 0x04,   // Touch Screen — some OEM drivers use this
+                    dwFlags     = NativeMethods.RIDEV_INPUTSINK,
+                    hwndTarget  = _hwnd,
+                },
             };
 
             _registered = NativeMethods.RegisterRawInputDevices(
-                new[] { rid }, 1,
+                rids, (uint)rids.Length,
                 (uint)Marshal.SizeOf<NativeMethods.RAWINPUTDEVICE>());
 
-            if (!_registered)
-            {
-                // Log but don't crash — maybe no touchpad is present.
-                System.Diagnostics.Debug.WriteLine(
-                    $"RegisterRawInputDevices failed: {Marshal.GetLastWin32Error()}");
-            }
+            System.Diagnostics.Debug.WriteLine(_registered
+                ? "RegisterRawInputDevices: OK"
+                : $"RegisterRawInputDevices failed: {Marshal.GetLastWin32Error()}");
         }
 
         private IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
@@ -144,15 +153,12 @@ namespace TrackpadWindowControl
 
             if (_registered)
             {
-                var rid = new NativeMethods.RAWINPUTDEVICE
+                var removeRids = new[]
                 {
-                    usUsagePage = NativeMethods.HID_USAGE_PAGE_DIGITIZER,
-                    usUsage     = NativeMethods.HID_USAGE_DIGITIZER_TOUCHPAD,
-                    dwFlags     = 0x00000001, // RIDEV_REMOVE
-                    hwndTarget  = IntPtr.Zero,
+                    new NativeMethods.RAWINPUTDEVICE { usUsagePage = NativeMethods.HID_USAGE_PAGE_DIGITIZER, usUsage = NativeMethods.HID_USAGE_DIGITIZER_TOUCHPAD, dwFlags = 0x00000001, hwndTarget = IntPtr.Zero },
+                    new NativeMethods.RAWINPUTDEVICE { usUsagePage = NativeMethods.HID_USAGE_PAGE_DIGITIZER, usUsage = 0x04,                                        dwFlags = 0x00000001, hwndTarget = IntPtr.Zero },
                 };
-                NativeMethods.RegisterRawInputDevices(
-                    new[] { rid }, 1,
+                NativeMethods.RegisterRawInputDevices(removeRids, (uint)removeRids.Length,
                     (uint)Marshal.SizeOf<NativeMethods.RAWINPUTDEVICE>());
             }
 
